@@ -77,16 +77,9 @@ export abstract class Pool extends SingleOutputOperation {
       windowDimensions[0] = input.shape[1];
       windowDimensions[1] = input.shape[2];
     }
-    let padding: 'valid'|'same'|ExplicitPadding;
+    let padding: 'valid'|'same'|number|ExplicitPadding;
     if (this.autoPad_ === MLAutoPad.explicit) {
-      if (this.padding_.every(v => v === 0)) {
-        padding = 'valid';
-      } else {
-        padding = [
-          [0, 0], [this.padding_[0], this.padding_[1]],
-          [this.padding_[2], this.padding_[3]], [0, 0]
-        ] as ExplicitPadding;
-      }
+      padding = this.padding_[0];
     } else {
       if (this.autoPad_ === MLAutoPad['same-upper']) {
         padding = 'same';
@@ -110,9 +103,14 @@ export abstract class Pool extends SingleOutputOperation {
       }
     }
 
-    let output = tf.pool(
-        input, this.windowDimensions_, poolingType, padding, this.dilations_,
-        this.strides_);
+    let output;
+    if (poolingType === 'avg') {
+      output = tf.avgPool(
+        input, this.windowDimensions_, this.strides_, padding, 'ceil');
+    } else {
+      output = tf.maxPool(
+        input, this.windowDimensions_, this.strides_, padding, 'ceil');
+    }
     if (this.layout_ === MLInputOperandLayout.nchw) {
       // nhwc -> nchw
       output = tf.transpose(output, [0, 3, 1, 2]);
